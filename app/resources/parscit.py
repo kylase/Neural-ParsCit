@@ -12,7 +12,7 @@ class Parse(Resource):
     """
     """
     parser = reqparse.RequestParser()
-    parser.add_argument('string', type=unicode, trim=True, required=True, location='json')
+    parser.add_argument('string', type=str, trim=True, required=True, location='json')
     @swagger.doc({
         'description': 'Parse a single string and return the associated entity for each token in the string.',
         'reqparser': {
@@ -56,7 +56,7 @@ class Parse(Resource):
 
 class ParseBatch(Resource):
     parser = reqparse.RequestParser()
-    parser.add_argument('strings', type=unicode, action='append', required=True, location='json')
+    parser.add_argument('strings', type=str, action='append', required=True, location='json')
     @swagger.doc({
         'description': 'Parse multiple string and return the associated entity for each token in each string.',
         'reqparser': {

@@ -4,7 +4,7 @@ from flask import Flask, Blueprint, jsonify, g
 from flask_restful_swagger_2 import Api, get_swagger_blueprint
 from flask_swagger_ui import get_swaggerui_blueprint
 from app.resources.parscit import Parse, ParseBatch
-from utils import get_model
+from .utils import get_model
 
 
 def create_app(config):

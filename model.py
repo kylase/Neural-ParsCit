@@ -1,6 +1,6 @@
 from __future__ import print_function
 import logging
-import cPickle
+import pickle
 import os
 import re
 import numpy as np
@@ -41,7 +41,7 @@ class Model(object):
                 os.makedirs(self.model_path)
             # Save the parameters to disk
             with open(self.parameters_path, 'wb') as f:
-                cPickle.dump(parameters, f)
+                pickle.dump(parameters, f)
         else:
             assert parameters is None and models_path is None
             # Model location
@@ -50,7 +50,7 @@ class Model(object):
             self.mappings_path = os.path.join(model_path, 'mappings.pkl')
             # Load the parameters and the mappings from disk
             with open(self.parameters_path, 'rb') as f:
-                self.parameters = cPickle.load(f)
+                self.parameters = pickle.load(f)
             self.reload_mappings()
         self.components = {}
 
@@ -67,14 +67,14 @@ class Model(object):
                 'id_to_char': self.id_to_char,
                 'id_to_tag': self.id_to_tag,
             }
-            cPickle.dump(mappings, f)
+            pickle.dump(mappings, f)
 
     def reload_mappings(self):
         """
         Load mappings from disk.
         """
         with open(self.mappings_path, 'rb') as f:
-            mappings = cPickle.load(f)
+            mappings = pickle.load(f)
         self.id_to_word = mappings['id_to_word']
         self.id_to_char = mappings['id_to_char']
         self.id_to_tag = mappings['id_to_tag']
