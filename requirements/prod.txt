@@ -6,3 +6,4 @@ flask_restful==0.3.6
 flask-restful-swagger-2==0.35
 flask-swagger-ui==3.6.0
 gunicorn==19.9.0
+git+https://github.com/WING-NUS/PyTorchCRF.git

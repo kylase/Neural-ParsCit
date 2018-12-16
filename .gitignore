@@ -1,3 +1,9 @@
 *.pyc
 .pytest_cache
 .venv
+
+# torchtext data temporary location
+.data
+
+# PyTorch Embedding temporary location
+.vector_cache
