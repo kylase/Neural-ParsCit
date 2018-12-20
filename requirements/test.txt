@@ -2,3 +2,4 @@
 pylint==1.9.2
 pytest==3.5.1
 pytest-flask==0.10.0
+scikit-learn==0.20.1

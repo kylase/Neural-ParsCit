@@ -3,4 +3,4 @@
 ipython==5.7.0
 git+https://github.com/pytorch/text.git@master
 torch==0.4.1
-scikit-learn==0.19.2
+scikit-learn==0.20.1

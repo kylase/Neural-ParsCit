@@ -1,9 +1,10 @@
+from __future__ import print_function
 import os
 import re
 import codecs
 from utils import create_dico, create_mapping, zero_digits
 from utils import iob2, iob_iobes
-import gensim, re
+import gensim
 
 def load_sentences(path, lower, zeros):
     """
@@ -61,9 +62,9 @@ def word_mapping(sentences, lower):
     dico = create_dico(words)
     dico['<UNK>'] = 10000000
     word_to_id, id_to_word = create_mapping(dico)
-    print "Found %i unique words (%i in total)" % (
+    print("Found %i unique words (%i in total)" % (
         len(dico), sum(len(x) for x in words)
-    )
+    ))
     return dico, word_to_id, id_to_word
 
 
@@ -74,7 +75,7 @@ def char_mapping(sentences):
     chars = ["".join([w[0] for w in s]) for s in sentences]
     dico = create_dico(chars)
     char_to_id, id_to_char = create_mapping(dico)
-    print "Found %i unique characters" % len(dico)
+    print("Found %i unique characters" % len(dico))
     return dico, char_to_id, id_to_char
 
 
@@ -85,7 +86,7 @@ def tag_mapping(sentences):
     tags = [[word[-1] for word in s] for s in sentences]
     dico = create_dico(tags)
     tag_to_id, id_to_tag = create_mapping(dico)
-    print "Found %i unique named entity tags" % len(dico)
+    print("Found %i unique named entity tags" % len(dico))
     return dico, tag_to_id, id_to_tag
 
 
@@ -124,7 +125,7 @@ def prepare_sentence(str_words, word_to_id, char_to_id, lower=False):
         'caps': caps
     }
 
-def prepare_dataset(sentences, word_to_id, char_to_id, lower=False, zeros=False):
+def prepare_dataset(sentences, word_to_id, char_to_id, tag_to_id, lower=False, zeros=False):
     """
     Prepare the dataset. Return a list of lists of dictionaries containing:
         - word indexes
@@ -147,11 +148,13 @@ def prepare_dataset(sentences, word_to_id, char_to_id, lower=False, zeros=False)
         chars = [[char_to_id[c] for c in w if c in char_to_id]
                  for w in str_words]
         caps = [cap_feature(w) for w in str_words]
+        tags = [tag_to_id[w[-1]] for w in s]
         data.append({
             'str_words': str_words,
             'words': words,
             'chars': chars,
             'caps': caps,
+            'tags': tags,
         })
     return data
 
@@ -162,8 +165,10 @@ def augment_with_pretrained(dictionary, ext_emb_path, words):
     to the dictionary, otherwise, we only add the words that are given by
     `words` (typically the words in the development and test sets.)
     """
-    print 'Loading pretrained embeddings from %s...' % ext_emb_path
+    print('Loading pretrained embeddings from %s...' % ext_emb_path)
     assert os.path.isfile(ext_emb_path)
+
+    is_digit = re.compile(r'\d')
 
     # Load pretrained embeddings from file
     #pretrained = set([
@@ -172,7 +177,7 @@ def augment_with_pretrained(dictionary, ext_emb_path, words):
     #    if len(ext_emb_path) > 0
     #])
 
-    pretrained = gensim.models.KeyedVectors.load_word2vec_format(ext_emb_path, binary=True)
+    pretrained = gensim.models.KeyedVectors.load(ext_emb_path, mmap='r')
 
     # We either add every word in the pretrained file,
     # or only words given in the `words` list to which
@@ -183,11 +188,7 @@ def augment_with_pretrained(dictionary, ext_emb_path, words):
                 dictionary[word] = 0
     else:
         for word in words:
-            if any(x in pretrained for x in [
-                word,
-                word.lower(),
-                re.sub('\d', '0', word.lower())
-            ]) and word not in dictionary:
+            if any(x in pretrained for x in [word, word.lower(), is_digit.sub('0', word.lower())]) and word not in dictionary:
                 dictionary[word] = 0
 
     word_to_id, id_to_word = create_mapping(dictionary)
