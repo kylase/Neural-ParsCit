@@ -206,7 +206,7 @@ if opts.reload:
 # Train network
 #
 singletons = set([word_to_id[k] for k, v in dico_words_train.items() if v == 1])
-n_epochs = 10  # number of epochs over the training set
+n_epochs = 1  # number of epochs over the training set
 freq_eval = 1000  # evaluate on dev every freq_eval steps
 best_dev = -np.inf
 best_test = -np.inf
