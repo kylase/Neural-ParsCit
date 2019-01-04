@@ -68,7 +68,7 @@ while True:
         file.write('\n'.join(string.split()) + '\n')
     file.close()
     test_sentences = load_sentences(test_file, lower, zeros)
-    data = prepare_dataset(test_sentences, word_to_id, char_to_id, lower, True)
+    data = prepare_dataset(test_sentences, word_to_id, char_to_id, {}, lower, True)
 
     for citation in data:
         inputs = create_input(citation, model.parameters, False)

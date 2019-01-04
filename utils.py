@@ -4,7 +4,6 @@ import re
 import codecs
 import numpy as np
 import theano
-from sklearn import metrics
 
 models_path = "./models"
 eval_path = "./evaluation"
@@ -223,6 +222,8 @@ def evaluate(parameters, f_eval, raw_sentences, parsed_sentences,
     """
     Evaluate current model using CoNLL script.
     """
+    # Make sklearn import at runtime only
+    from sklearn import metrics
     results = {'real': [], 'predicted': []}
 
     for _, data in zip(raw_sentences, parsed_sentences):
