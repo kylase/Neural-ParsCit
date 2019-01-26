@@ -38,7 +38,7 @@ def set_values(name, param, pretrained):
         )
     param.set_value(np.reshape(
         pretrained, param_value.shape
-    ).astype(np.float32))
+    ).astype(theano.config.floatX))
 
 
 def shared(shape, name):

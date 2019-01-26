@@ -42,6 +42,7 @@ class Parse(Resource):
         data = prepare_dataset([[[token] for token in tokens]],
                                current_app.word_to_id,
                                current_app.char_to_id,
+                               {},
                                current_app.model.parameters['lower'],
                                True)
 
@@ -81,6 +82,7 @@ class ParseBatch(Resource):
         data = prepare_dataset(tokens,
                                current_app.word_to_id,
                                current_app.char_to_id,
+                               {},
                                current_app.model.parameters['lower'],
                                True)
 

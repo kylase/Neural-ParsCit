@@ -302,8 +302,8 @@ class Model(object):
             transitions = shared((n_tags + 2, n_tags + 2), 'transitions')
 
             small = -1000
-            b_s = np.array([[small] * n_tags + [0, small]]).astype(np.float32)
-            e_s = np.array([[small] * n_tags + [small, 0]]).astype(np.float32)
+            b_s = np.array([[small] * n_tags + [0, small]]).astype(theano.config.floatX)
+            e_s = np.array([[small] * n_tags + [small, 0]]).astype(theano.config.floatX)
             observations = T.concatenate(
                 [tags_scores, small * T.ones((s_len, 2))],
                 axis=1

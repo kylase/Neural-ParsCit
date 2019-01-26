@@ -138,7 +138,7 @@ logger = logging.getLogger
 
 # Initialize model
 model = Model(parameters=parameters, models_path=models_path)
-logging.info("Model location: %s" % model.model_path)
+logging.info("Model location: %s", model.model_path)
 
 # Data parameters
 lower = parameters['lower']
@@ -155,22 +155,24 @@ test_sentences = loader.load_sentences(opts.test, lower, zeros)
 ##update_tag_scheme(dev_sentences, tag_scheme)
 ##update_tag_scheme(test_sentences, tag_scheme)
 
+all_sentences = train_sentences + dev_sentences + test_sentences
+
 # Create a dictionary / mapping of words
 # If we use pretrained embeddings, we add them to the dictionary.
 if parameters['pre_emb']:
-    dico_words_train = word_mapping(train_sentences, lower)[0]
+    dico_words_train = word_mapping(all_sentences, lower)[0]
     dico_words, word_to_id, id_to_word = augment_with_pretrained(
         dico_words_train.copy(),
         parameters['pre_emb'],
         None
     )
 else:
-    dico_words, word_to_id, id_to_word = word_mapping(train_sentences, lower)
+    dico_words, word_to_id, id_to_word = word_mapping(all_sentences, lower)
     dico_words_train = dico_words
 
 # Create a dictionary and a mapping for words / POS tags / tags
-dico_chars, char_to_id, id_to_char = char_mapping(train_sentences)
-dico_tags, tag_to_id, id_to_tag = tag_mapping(train_sentences)
+dico_chars, char_to_id, id_to_char = char_mapping(all_sentences)
+dico_tags, tag_to_id, id_to_tag = tag_mapping(all_sentences)
 
 # Index data
 train_data = prepare_dataset(
@@ -229,12 +231,12 @@ for epoch in xrange(n_epochs):
             logging.info("Score on dev: %.5f", dev_score)
             logging.info("Score on test: %.5f", test_score)
             if dev_score > best_dev:
+                logging.info("New best score on dev: %f. (Previously: %f)", dev_score, best_dev)
                 best_dev = dev_score
-                logging.info("New best score on dev.")
                 logging.info("Saving model to disk...")
                 model.save()
             if test_score > best_test:
+                logging.info("New best score on test: %f. (Previously: %f)", test_score, best_test)
                 best_test = test_score
-                logging.info("New best score on test.")
-    logging.info("Epoch %i done. Average cost: %f" % (epoch, np.mean(epoch_costs)))
+    logging.info("Epoch %i done. Average cost: %f", epoch, np.mean(epoch_costs))
 model.save()
