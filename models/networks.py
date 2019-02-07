@@ -108,7 +108,7 @@ class WordCharLSTMCRF(nn.Module):
 
         return final_hidden_state.permute(1, 0, 2).contiguous().view(max_seq_len, -1)
 
-    def _features(self, word_inputs, char_inputs):
+    def encode(self, word_inputs, char_inputs):
         """
         Return:
             encoded: Tensor (max_seq_len, batch_size, hidden_dim)
