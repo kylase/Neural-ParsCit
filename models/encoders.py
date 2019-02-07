@@ -1,9 +1,12 @@
 import torch
 import torch.nn as nn
 
+from typing import List
+
 class LSTMEncoder(nn.Module):
-    r"""
-    LSTM Encoder
+    r"""LSTM-based encoder with embedding layer
+
+    This module can be used for e.g. character-level encoder
 
     Args:
         vocab_size: int
@@ -13,7 +16,6 @@ class LSTMEncoder(nn.Module):
         lstm_dropout: float
         lstm_bidirectional: bool
         pretrained: Tensor
-        device: str {'cpu', 'gpu'}
     """
     def __init__(self,
                  vocab_size: int,
@@ -22,6 +24,7 @@ class LSTMEncoder(nn.Module):
                  lstm_layers: int = 1,
                  lstm_dropout: float = 0.0,
                  lstm_bidirectional: bool = False,
+                 lstm_batch_first: bool = False,
                  **kwargs):
 
         super().__init__()
@@ -45,7 +48,8 @@ class LSTMEncoder(nn.Module):
 
         self.lstm = nn.LSTM(self.embedding_dim, self.hidden_dim,
                             num_layers=lstm_layers, dropout=lstm_dropout,
-                            bidirectional=lstm_bidirectional)
+                            bidirectional=lstm_bidirectional,
+                            batch_first=lstm_batch_first)
 
         self.hidden_states = None
 
@@ -54,14 +58,22 @@ class LSTMEncoder(nn.Module):
 
         self.hidden_states = (zeros, zeros)
 
-    def _get_lstm_features(self, features: torch.Tensor):
+    def _get_lstm_features(self, features: torch.Tensor) -> torch.Tensor:
+        """
+        Return:
+            lstm_out of shape (seq_len, batch, num_directions * hidden_size)
+        """
 
         lstm_out, self.hidden_states = self.lstm(features, self.hidden_states)
 
         return lstm_out
 
-    def forward(self, batch):
-        embed_out = self.embeddings(batch)
+    def forward(self, *inputs: List[torch.Tensor]):
+        """
+        Args:
+            inputs: List[Tensor]
+        """
+        embed_out = self.embeddings(inputs[0])
 
         lstm_features = self._get_lstm_features(embed_out)
 
