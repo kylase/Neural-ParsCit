@@ -1,4 +1,4 @@
 -r prod.txt
-pylint==2.1.1
-pytest==3.8.2
-pytest-flask==0.13.0
+pylint==2.2.2
+pytest==4.2.0
+pytest-flask==0.14.0
