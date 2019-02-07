@@ -63,7 +63,7 @@ class TestLSTMEncoder:
         input_tensor = torch.randint(low=0, high=self.VOCAB_SIZE - 1,
                                      size=(MAX_SEQ_LEN, BATCH_SIZE))
 
-        for k, model in self.models.items():
+        for _, model in self.models.items():
             with torch.no_grad():
                 encoded = model(input_tensor)
 
