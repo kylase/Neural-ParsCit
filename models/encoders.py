@@ -71,7 +71,7 @@ class LSTMEncoder(nn.Module):
     def forward(self, *inputs: List[torch.Tensor]):
         """
         Args:
-            inputs: List[Tensor]
+            inputs[0]: Tensor (max_seq_len, batch_size)
         """
         embed_out = self.embeddings(inputs[0])
 
