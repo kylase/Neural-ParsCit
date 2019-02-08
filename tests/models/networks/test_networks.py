@@ -1,6 +1,5 @@
 import pytest
 import torch
-import numpy as np
 from models.networks import WordCharLSTMCRF
 
 
@@ -23,6 +22,7 @@ class TestWordCharLSTMCRF:
 
         self.models['simple'] = simple
 
+
     def test_init(self):
         assert self.models['simple'].tag_vocab_size == self.TAG_VOCAB_SIZE
         assert self.models['simple'].hidden_dim == self.WORD_HIDDEN_DIM
@@ -31,6 +31,7 @@ class TestWordCharLSTMCRF:
         assert self.models['simple'].char_encoder.hidden_dim == self.CHAR_HIDDEN_DIM
         assert self.models['simple'].char_encoder.vocab_size == self.CHAR_VOCAB_SIZE
         assert self.models['simple'].char_encoder.embedding_dim == self.CHAR_EMBEDDING_DIM
+
 
     def test_forward(self):
         BATCH_SIZE = 2
@@ -44,22 +45,38 @@ class TestWordCharLSTMCRF:
         tag_inputs = torch.randint(low=0, high=self.TAG_VOCAB_SIZE - 1,
                                    size=(MAX_SEQ_LEN, BATCH_SIZE))
 
-        for _, model in self.models.items():
-            with torch.no_grad():
+        with torch.no_grad():
+            for _, model in self.models.items():
                 neg_log_likelihood = model(word_inputs, char_inputs, tag_inputs)
 
-            # assert torch.is_tensor(encoded)
-            # assert encoded.size() == (MAX_SEQ_LEN, BATCH_SIZE, self.WORD_HIDDEN_DIM)
-            assert neg_log_likelihood.dtype == torch.float
+                assert neg_log_likelihood.dtype == torch.float
+
+
+    def test_decode(self):
+        BATCH_SIZE = 2
+        MAX_SEQ_LEN = 17
+        MAX_WORD_LENGTH = 9
+
+        word_inputs = torch.randint(low=0, high=self.WORD_VOCAB_SIZE - 1,
+                                    size=(MAX_SEQ_LEN, BATCH_SIZE))
+        char_inputs = torch.randint(low=0, high=self.CHAR_VOCAB_SIZE - 1,
+                                    size=(BATCH_SIZE, MAX_SEQ_LEN, MAX_WORD_LENGTH))
+        with torch.no_grad():
+            for _, model in self.models.items():
+                decoded_sequence = model.decode(word_inputs, char_inputs)
+
+                assert decoded_sequence.shape == word_inputs.shape
+
 
     def test_mask(self):
-        unmasked = torch.from_numpy(np.array([[3, 3, 2, 2, 1, 1], [3, 3, 2, 2, 2, 5]]))
-        expected = torch.from_numpy(np.array([[1, 1, 1, 1, 0, 0], [1, 1, 1, 1, 1, 1]]))
+        unmasked = torch.tensor([[3, 3, 2, 2, 1, 1], [3, 3, 2, 2, 2, 5]])
+        expected = torch.tensor([[1, 1, 1, 1, 0, 0], [1, 1, 1, 1, 1, 1]])
 
         masked = WordCharLSTMCRF.generate_mask(unmasked)
 
         assert masked.dtype == torch.long
         assert torch.allclose(masked, expected)
+
 
     def test_init_hidden_states(self):
         model = self.models['simple']
