@@ -6,3 +6,5 @@ python:
   - "3.7"
 install:
   - pip install -q -r requirements/test.txt
+script:
+  - pytest
