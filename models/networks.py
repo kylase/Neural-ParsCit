@@ -35,7 +35,7 @@ class WordCharLSTMCRF(nn.Module):
                  **kwargs):
         super().__init__()
 
-        self.device = kwargs.get('device', 'cpu')
+        self._device = kwargs.get('device', 'cpu')
 
         char_encoder_params = {
             'vocab_size': char_vocab_size,
@@ -213,4 +213,4 @@ class WordCharLSTMCRF(nn.Module):
         mask = self.generate_mask(tag_inputs)
         log_likelihood = self.decoder(decoder_inputs, tag_inputs, mask)
 
-        return -1.0 * log_likelihood.item()
+        return -1.0 * log_likelihood
