@@ -43,7 +43,8 @@ class WordCharLSTMCRF(nn.Module):
             'hidden_dim': char_hidden_dim,
             'lstm_layers': char_lstm_layers,
             'lstm_bidirectional': char_lstm_bidirectional,
-            'lstm_batch_first': True
+            'lstm_batch_first': True,
+            'device': self._device
         }
 
         # Initialise character-level encoder
