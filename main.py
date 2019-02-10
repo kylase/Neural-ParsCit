@@ -72,7 +72,7 @@ def report(dataset, model: torch.nn.Module, vocab, device):
 
     true, pred = flatten_examples(examples)
     # Print overall performance
-    print(classification_report(true, pred, labels=vocab.vocab.itos))
+    print(classification_report(true, pred, target_names=vocab.vocab.itos[2:]))
     print(f"Micro F1: {f1_score(true, pred, average='micro')}; Macro F1: {f1_score(true, pred, average='macro')}")
 
 
