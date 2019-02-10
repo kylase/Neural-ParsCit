@@ -54,7 +54,7 @@ class LSTMEncoder(nn.Module):
         self.hidden_states = None
 
     def init_hidden_states(self, batch_size: int):
-        zeros = torch.zeros(self.lstm_factor, batch_size, self.hidden_dim)
+        zeros = torch.zeros(self.lstm_factor, batch_size, self.hidden_dim).to(self._device)
 
         self.hidden_states = (zeros, zeros)
 

@@ -34,20 +34,23 @@ class WordCharLSTMCRF(nn.Module):
                  **kwargs):
         super().__init__()
 
+        self._device = kwargs.get('device', 'cpu')
+
         # Initialise character-level encoder
         self.char_encoder = LSTMEncoder(char_vocab_size, char_embedding_dim,
                                         char_hidden_dim,
                                         lstm_layers=char_lstm_layers,
                                         lstm_dropout=char_lstm_dropout,
                                         lstm_bidirectional=char_lstm_bidirectional,
-                                        lstm_batch_first=True)
+                                        lstm_batch_first=True,
+                                        device=self._device)
 
         # Initialise word-level encoder
         self.lstm_factor = word_lstm_layers * (2 ** int(word_lstm_bidirectional))
 
         self.hidden_dim = word_hidden_dim // self.lstm_factor
 
-        self._device = kwargs.get('device', 'cpu')
+
 
         pretrained = kwargs.get('word_pretrained', None)
 
@@ -92,7 +95,7 @@ class WordCharLSTMCRF(nn.Module):
         return (tensor != mask_value).long()
 
     def init_hidden_states(self, batch_size: int) -> None:
-        zeros = torch.zeros(self.lstm_factor, batch_size, self.hidden_dim)
+        zeros = torch.zeros(self.lstm_factor, batch_size, self.hidden_dim).to(self._device)
 
         self.hidden_states = (zeros, zeros)
 
