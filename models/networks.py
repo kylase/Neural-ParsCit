@@ -18,6 +18,7 @@ class WordCharLSTMCRF(nn.Module):
         char_vocab_size: int
         char_embedding_dim: int
         char_hidden_dim: int
+        dropout_rate: float = 0.5 Dropout rate of the layer before LSTM
         word_lstm_layers: int = 1
         word_lstm_bidirectional: bool = False
         char_lstm_layers: int = 1
@@ -28,22 +29,25 @@ class WordCharLSTMCRF(nn.Module):
     def __init__(self, tag_vocab_size: int, word_vocab_size: int,
                  word_embedding_dim: int, word_hidden_dim: int,
                  char_vocab_size: int, char_embedding_dim: int,
-                 char_hidden_dim: int, word_lstm_layers: int = 1,
-                 word_lstm_bidirectional: bool = False, char_lstm_layers: int = 1,
-                 char_lstm_dropout: float = 0.0, char_lstm_bidirectional: bool = False,
+                 char_hidden_dim: int, dropout_rate: float = 0.5,
+                 word_lstm_layers: int = 1, word_lstm_bidirectional: bool = False,
+                 char_lstm_layers: int = 1, char_lstm_bidirectional: bool = False,
                  **kwargs):
         super().__init__()
 
-        self._device = kwargs.get('device', 'cpu')
+        self.device = kwargs.get('device', 'cpu')
+
+        char_encoder_params = {
+            'vocab_size': char_vocab_size,
+            'embedding_dim': char_embedding_dim,
+            'hidden_dim': char_hidden_dim,
+            'lstm_layers': char_lstm_layers,
+            'lstm_bidirectional': char_lstm_bidirectional,
+            'lstm_batch_first': True
+        }
 
         # Initialise character-level encoder
-        self.char_encoder = LSTMEncoder(char_vocab_size, char_embedding_dim,
-                                        char_hidden_dim,
-                                        lstm_layers=char_lstm_layers,
-                                        lstm_dropout=char_lstm_dropout,
-                                        lstm_bidirectional=char_lstm_bidirectional,
-                                        lstm_batch_first=True,
-                                        device=self._device)
+        self.char_encoder = LSTMEncoder(**char_encoder_params)
 
         # Initialise word-level encoder
         self.lstm_factor = word_lstm_layers * (2 ** int(word_lstm_bidirectional))
@@ -65,6 +69,8 @@ class WordCharLSTMCRF(nn.Module):
 
         encoder_input_dim = self.embedding_dim + \
             self.char_encoder.hidden_dim * self.char_encoder.lstm_factor
+
+        self.dropout = nn.Dropout(p=dropout_rate)
 
         self.encoder = nn.LSTM(encoder_input_dim, self.hidden_dim,
                                num_layers=word_lstm_layers,
@@ -99,7 +105,17 @@ class WordCharLSTMCRF(nn.Module):
 
         self.hidden_states = (zeros, zeros)
 
-    def _char_features(self, char_inputs):
+    def _char_features(self, char_inputs: torch.Tensor) -> torch.Tensor:
+        """
+        Encode the characters of a word through the `char_encoder` to obtain
+        the final hidden state
+
+        Args:
+            char_inputs: Tensor (batch_size, max_seq_len, max_word_len)
+
+        Return:
+            final_hidden_state: Tensor ()
+        """
         max_seq_len, _ = char_inputs.size()
 
         # Obtain the final hidden state from the character encoder
@@ -109,9 +125,13 @@ class WordCharLSTMCRF(nn.Module):
 
         return final_hidden_state.permute(1, 0, 2).contiguous().view(max_seq_len, -1)
 
-    def encode(self, word_inputs, char_inputs):
+    def encode(self, word_inputs: torch.Tensor, char_inputs: torch.Tensor) -> torch.Tensor:
         """
         Encode the inputs using the encoder(s)
+
+        Args:
+            word_inputs: Tensor (max_seq_len, batch_size)
+            char_inputs: Tensor (batch_size, max_seq_len, max_word_len)
 
         Return:
             encoded: Tensor (max_seq_len, batch_size, hidden_dim)
@@ -137,6 +157,9 @@ class WordCharLSTMCRF(nn.Module):
         # from the LSTM encoder on the second dimension (max_seq_len)
         combined_input = torch.cat((word_embeddings_out, batch_char_features), 2)
 
+        # Apply dropout to combined embeddings
+        encoder_input = self.dropout(combined_input)
+
         encoded, self.hidden_states = self.encoder(combined_input, self.hidden_states)
 
         return encoded
@@ -144,7 +167,7 @@ class WordCharLSTMCRF(nn.Module):
     def decode(self, word_inputs: torch.Tensor, char_inputs: torch.Tensor,
                dtype: torch.dtype = torch.long):
         """
-        Decode the encode sequence
+        Decode the encoded sequence
 
         Args:
             word_inputs: Tensor (max_seq_len, batch_size)
@@ -176,7 +199,7 @@ class WordCharLSTMCRF(nn.Module):
             tag_inputs: Tensor (max_seq_len, batch_size)
 
         Return:
-            negative_log_likelihood: FloatTensor
+            negative_log_likelihood: float
         """
         word_inputs, char_inputs, tag_inputs = inputs
 
@@ -190,4 +213,4 @@ class WordCharLSTMCRF(nn.Module):
         mask = self.generate_mask(tag_inputs)
         log_likelihood = self.decoder(decoder_inputs, tag_inputs, mask)
 
-        return -1.0 * log_likelihood
+        return -1.0 * log_likelihood.item()
