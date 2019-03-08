@@ -2,4 +2,4 @@
 -r test.txt
 ipykernel==5.1.0
 tensorboardX==1.6
-tensorboard==1.12.2
+tensorboard==1.13.1
