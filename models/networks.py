@@ -55,8 +55,6 @@ class WordCharLSTMCRF(nn.Module):
 
         self.hidden_dim = word_hidden_dim // self.lstm_factor
 
-
-
         pretrained = kwargs.get('word_pretrained', None)
 
         if torch.is_tensor(pretrained):
@@ -81,7 +79,10 @@ class WordCharLSTMCRF(nn.Module):
 
         self.tag_vocab_size = tag_vocab_size
 
-        self.hidden_layer = nn.Linear(self.hidden_dim * self.lstm_factor, self.tag_vocab_size)
+        self.feed_forward = nn.Sequential(
+            nn.Linear(self.hidden_dim * self.lstm_factor, self.tag_vocab_size),
+            nn.Tanh()
+        )
 
         self.decoder = ConditionalRandomField(self.tag_vocab_size)
 
@@ -161,12 +162,12 @@ class WordCharLSTMCRF(nn.Module):
         # Apply dropout to combined embeddings
         encoder_input = self.dropout(combined_input)
 
-        encoded, self.hidden_states = self.encoder(combined_input, self.hidden_states)
+        encoded, self.hidden_states = self.encoder(encoder_input, self.hidden_states)
 
         return encoded
 
     def decode(self, word_inputs: torch.Tensor, char_inputs: torch.Tensor,
-               dtype: torch.dtype = torch.long):
+               dtype: torch.dtype = torch.long) -> torch.Tensor:
         """
         Decode the encoded sequence
 
@@ -184,7 +185,7 @@ class WordCharLSTMCRF(nn.Module):
 
         encoded = self.encode(word_inputs, char_inputs)
 
-        features = self.hidden_layer(encoded)
+        features = self.feed_forward(encoded)
 
         mask = self.generate_mask(word_inputs)
 
@@ -208,7 +209,7 @@ class WordCharLSTMCRF(nn.Module):
         encoded = self.encode(word_inputs, char_inputs)
 
         # Use linear layer to reduce the dimension for decoder layer
-        decoder_inputs = self.hidden_layer(encoded)
+        decoder_inputs = self.feed_forward(encoded)
 
         # Compute the log-likelihood
         mask = self.generate_mask(tag_inputs)

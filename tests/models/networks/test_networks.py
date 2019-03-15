@@ -1,5 +1,6 @@
 import pytest
 import torch
+from flaky import flaky
 from models.networks import WordCharLSTMCRF
 
 
@@ -21,6 +22,9 @@ class TestWordCharLSTMCRF:
                                  self.CHAR_HIDDEN_DIM)
 
         self.models['simple'] = simple
+
+        # Set random seed
+        torch.manual_seed(0)
 
 
     def test_init(self):
@@ -51,7 +55,7 @@ class TestWordCharLSTMCRF:
 
                 assert neg_log_likelihood.dtype == torch.float
 
-
+    @flaky
     def test_decode(self):
         BATCH_SIZE = 2
         MAX_SEQ_LEN = 17
