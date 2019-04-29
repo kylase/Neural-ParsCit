@@ -7,3 +7,9 @@
 
 # PyTorch Embedding temporary location
 .vector_cache
+
+.coverage
+.idea
+
+# Tensorboard logs
+logs/

@@ -10,6 +10,8 @@ class WordCharLSTMCRF(nn.Module):
     r"""
     Word and character-level LSTM encoders with CRF decoder [Lample, 2016]
 
+    Includes capitalisation embeddings
+
     Args:
         tag_vocab_size: int
         word_vocab_size: int
@@ -72,7 +74,10 @@ class WordCharLSTMCRF(nn.Module):
 
         self.cap_embedding = nn.Embedding(cap_embedding_dim, 1)
 
-        self.dropout = nn.Dropout(p=dropout_rate)
+        if dropout_rate:
+            self.dropout = nn.Dropout(p=dropout_rate)
+        else:
+            self.dropout = None
 
         self.encoder = nn.LSTM(encoder_input_dim, self.hidden_dim,
                                num_layers=word_lstm_layers,
@@ -96,8 +101,10 @@ class WordCharLSTMCRF(nn.Module):
         Convert the elements which is equal to mask_value (index of padding)
         to 0 and the rest to 1
 
+        `mask_value` should be set to `None` if there is no padding.
+
         Args:
-            tensor: torch.Tensor
+            tensor: Tensor
             mask_value (int) the value which will be 0 after masking (usually
             the index of the padding)
 
@@ -105,7 +112,7 @@ class WordCharLSTMCRF(nn.Module):
             mask: LongTensor
         """
         if mask_value is None:
-            return torch.ones(tensor.size()).long()
+            return torch.ones(tensor.size(), device=tensor.device).long()
 
         return (tensor != mask_value).long()
 
