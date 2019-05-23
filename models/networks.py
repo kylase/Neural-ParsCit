@@ -10,8 +10,6 @@ class WordCharLSTMCRF(nn.Module):
     r"""
     Word and character-level LSTM encoders with CRF decoder [Lample, 2016]
 
-    Includes capitalisation embeddings
-
     Args:
         tag_vocab_size: int
         word_vocab_size: int
@@ -20,7 +18,6 @@ class WordCharLSTMCRF(nn.Module):
         char_vocab_size: int
         char_embedding_dim: int
         char_hidden_dim: int
-        cap_embedding_dim: int
         dropout_rate: float = 0.5
         word_lstm_layers: int = 1
         word_lstm_bidirectional: bool = False
@@ -32,7 +29,7 @@ class WordCharLSTMCRF(nn.Module):
     def __init__(self, tag_vocab_size: int, word_vocab_size: int,
                  word_embedding_dim: int, word_hidden_dim: int,
                  char_vocab_size: int, char_embedding_dim: int,
-                 char_hidden_dim: int, cap_embedding_dim: int, dropout_rate: float = 0.5,
+                 char_hidden_dim: int, dropout_rate: float = 0.5,
                  word_lstm_layers: int = 1, word_lstm_bidirectional: bool = False,
                  char_lstm_layers: int = 1, char_lstm_bidirectional: bool = False,
                  **kwargs):
@@ -69,10 +66,8 @@ class WordCharLSTMCRF(nn.Module):
             self.embedding_dim = word_embedding_dim
             self.embeddings = nn.Embedding(self.vocab_size, self.embedding_dim)
 
-        encoder_input_dim = 1 + self.embedding_dim + \
+        encoder_input_dim = self.embedding_dim + \
             self.char_encoder.hidden_dim * self.char_encoder.lstm_factor
-
-        self.cap_embedding = nn.Embedding(cap_embedding_dim, 1)
 
         if dropout_rate:
             self.dropout = nn.Dropout(p=dropout_rate)
@@ -141,21 +136,18 @@ class WordCharLSTMCRF(nn.Module):
 
         return final_hidden_state.permute(1, 0, 2).contiguous().view(max_seq_len, -1)
 
-    def encode(self, word_inputs: torch.Tensor, char_inputs: torch.Tensor,
-               cap_inputs: torch.Tensor) -> torch.Tensor:
+    def encode(self, word_inputs: torch.Tensor, char_inputs: torch.Tensor) -> torch.Tensor:
         """
         Encode the inputs using the encoder(s)
 
         Args:
             word_inputs: Tensor (max_seq_len, batch_size)
             char_inputs: Tensor (batch_size, max_seq_len, max_word_len)
-            cap_inputs: Tensor (max_seq_len, batch_size)
 
         Return:
             encoded: Tensor (max_seq_len, batch_size, hidden_dim)
         """
         word_embeddings_out = self.embeddings(word_inputs)
-        cap_embedding_out = self.cap_embedding(cap_inputs.t())
 
         batch_size, max_seq_len, _ = char_inputs.size()
 
@@ -174,7 +166,7 @@ class WordCharLSTMCRF(nn.Module):
 
         # Concatenated the word embeddings and the character-level embeddings
         # from the LSTM encoder on the second dimension (max_seq_len)
-        combined_input = torch.cat((word_embeddings_out, batch_char_features, cap_embedding_out), 2)
+        combined_input = torch.cat((word_embeddings_out, batch_char_features), 2)
 
         # Apply dropout to combined embeddings
         encoder_input = self.dropout(combined_input)
@@ -184,14 +176,13 @@ class WordCharLSTMCRF(nn.Module):
         return encoded
 
     def decode(self, word_inputs: torch.Tensor, char_inputs: torch.Tensor,
-               cap_inputs: torch.Tensor, dtype: torch.dtype = torch.long) -> torch.Tensor:
+               dtype: torch.dtype = torch.long) -> torch.Tensor:
         """
         Decode the encoded sequence
 
         Args:
             word_inputs: Tensor (max_seq_len, batch_size)
             char_inputs: Tensor (batch_size, max_seq_len, max_word_len)
-            cap_inputs: Tensor (max_seq_len, batch_size)
             dtype: torch.dtype
         Return:
             decoded_sequence: Tensor (max_seq_len, batch_size)
@@ -201,7 +192,7 @@ class WordCharLSTMCRF(nn.Module):
 
         self.init_hidden_states(batch_size)
 
-        encoded = self.encode(word_inputs, char_inputs, cap_inputs)
+        encoded = self.encode(word_inputs, char_inputs)
 
         features = self.feed_forward(encoded)
 
@@ -221,10 +212,10 @@ class WordCharLSTMCRF(nn.Module):
         Return:
             outputs: Dict[str, Tensor]
         """
-        word_inputs, char_inputs, tag_inputs, cap_inputs = inputs
+        word_inputs, char_inputs, tag_inputs = inputs
 
         # Encode the inputs with character and word-level embeddings
-        encoded = self.encode(word_inputs, char_inputs, cap_inputs)
+        encoded = self.encode(word_inputs, char_inputs)
 
         # Use feed forward layers to reduce the dimension for decoder
         features = self.feed_forward(encoded)

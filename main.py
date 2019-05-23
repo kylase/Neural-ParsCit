@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 
 from random import randint
 from collections import namedtuple, defaultdict, deque
@@ -10,7 +11,7 @@ from torch import nn
 from torch.nn.utils.clip_grad import clip_grad_value_
 
 from sklearn.metrics import classification_report, confusion_matrix, f1_score
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 
 from tqdm import tqdm
 
@@ -25,6 +26,8 @@ from torchtext.vocab import GloVe
 from models.networks import WordCharLSTMCRF
 
 # from cli.parser import create_parser
+
+# gensim.models.KeyedVectors.load_word2vec_format('/Users/yuanchuan/Downloads/data/word_vectors/GoogleNews/GoogleNews-vectors-negative300.bin', binary=True)
 
 def flatten_examples(examples):
     y_true = []
@@ -53,9 +56,8 @@ def report(dataset, params, state, vocab, verbose=True, print_random_sequence=Tr
 
             text = batch.text
             char = batch.char
-            cap = batch.cap
 
-            decoded_sequence = model.decode(text, char, cap)
+            decoded_sequence = model.decode(text, char)
 
             examples.append(example(text.numpy(), decoded_sequence.numpy(), batch.label.numpy()))
 
@@ -112,24 +114,22 @@ def main():
     logger.info("Using %s for training.", device)
 
     # torch.manual_seed(0)
-    import re
+
     is_digit = re.compile("\d")
     def zeroify(chars):
         return list(map(lambda char: '0' if is_digit.search(char) else char, chars))
 
     WORD = Field()
-    LABEL = Field(unk_token=None, pad_token=None, is_target=True)
-    CHAR_NESTING = Field(tokenize=list, preprocessing=zeroify, pad_token="<p>")
+    LABEL = Field(unk_token=None, pad_token=None)
+    CHAR_NESTING = Field(tokenize=list, preprocessing=zeroify)
     CHAR = NestedField(CHAR_NESTING)
-    CAP_NESTING = Field(preprocessing=cap_feature, sequential=False, use_vocab=False)
-    CAP = NestedField(CAP_NESTING)
 
     # CORA_FIELDS = [(('text', 'char', 'cap'), (WORD, CHAR, CAP))] + [(None, None)] * 22 + [('label', LABEL)]
-
+    #
     # train, test = CoraWithFeatures.splits(fields=CORA_FIELDS, k=0, test_frac=0.1)
 
     # CoNLL 2003
-    fields = [(('text', 'char', 'cap'), (WORD, CHAR, CAP)), (None, None), (None, None), ('label', LABEL)]
+    fields = [(('text', 'char'), (WORD, CHAR)), (None, None), (None, None), ('label', LABEL)]
 
     train, val, test = SequenceTaggingDataset.splits(path='.data/conll2003',
                                                      train='eng.train',
@@ -139,13 +139,12 @@ def main():
                                                      fields=fields)
 
     # etd_fields = [(('text', 'char'), (WORD, CHAR))] + [('label', LABEL)]
-    #
     # train, val, test = ETD.splits(etd_fields)
     logger.info('Building vocabularies...')
 
-    WORD.build_vocab(train.text, train.text, test.text, vectors=[GloVe(name='6B', dim='50')])
-    LABEL.build_vocab(train.label, train.label, test.label)
-    CHAR.build_vocab(train.char, train.char, test.char)
+    WORD.build_vocab(train.text, val.text, test.text, vectors=[GloVe(name='6B', dim='100')])
+    LABEL.build_vocab(train.label, val.label, test.label)
+    CHAR.build_vocab(train.char, val.char, test.char)
 
     # WORD.build_vocab(train.text, train.text, test.text, vectors=[AugmentedACM()])
     # LABEL.build_vocab(train.label, train.label, test.label)
@@ -159,11 +158,10 @@ def main():
         'char_vocab_size': len(CHAR.vocab),
         'char_embedding_dim': 25,
         'char_hidden_dim': 50,
-        'cap_embedding_dim': 4,
         'dropout_rate': 0.5,
         'pretrained': WORD.vocab.vectors,
         'word_lstm_bidirectional': True,
-        'char_lstm_bidirectional': False,
+        'char_lstm_bidirectional': True,
         'device': device
     }
 
@@ -191,14 +189,14 @@ def main():
     model.to(device)
 
     # Initialise weights
-    for module in model.modules():
-        if isinstance(module, (nn.Linear)):
-            nn.init.uniform_(module.weight, a=-1, b=1)
-            # nn.init.xavier_uniform_(m.weight)
+    # for module in model.modules():
+    #     if isinstance(module, (nn.Linear)):
+    #         nn.init.uniform_(module.weight, a=-1, b=1)
+    #         nn.init.xavier_uniform_(m.weight)
 
-    train_iter, test_iter = BucketIterator.splits((train, test),
-                                                  batch_sizes=(1, 1, 1),
-                                                  shuffle=True)
+    train_iter, val_iter, test_iter = BucketIterator.splits((train, val, test),
+                                                            batch_sizes=(20, 1, 1),
+                                                            shuffle=True)
 
     optimizer = optim.SGD(model.parameters(), lr=0.005)
     # writer = SummaryWriter(log_dir=f"logs/expt:{params_to_str(params)}")
@@ -211,7 +209,7 @@ def main():
     best_model_state = None
     highest_loss = 1e6
 
-    for _ in tqdm(range(1), desc=f"Epoch"):
+    for _ in tqdm(range(25), desc=f"Epoch"):
         train_length = len(train_iter)
         losses = deque(maxlen=min(log_frequency, round(train_length/log_frequency)))
 
@@ -226,9 +224,8 @@ def main():
             text = batch.text.to(device)
             char = batch.char.to(device)
             label = batch.label.to(device)
-            cap = batch.cap.to(device)
 
-            outputs = model(text, char, label, cap)
+            outputs = model(text, char, label)
 
             loss = outputs['loss']
 
@@ -259,13 +256,13 @@ def main():
             optimizer.step()
 
     logger.info('Training completed.')
-    # torch.save(best_model_state, 'best_model.pt')
+    torch.save(best_model_state, 'best_model.pt')
 
-    print(f"Training:")
-    report(train_iter, params.copy(), best_model_state, LABEL)
-    # print(f"Validation:")
-    # report(val_iter, params.copy(), best_model_state, LABEL)
-    print(f"Test:")
+    # print(f"Training:")
+    # report(train_iter, params.copy(), best_model_state, LABEL)
+    print(f"Validation (testa):")
+    report(val_iter, params.copy(), best_model_state, LABEL)
+    print(f"Test (testb):")
     examples = report(test_iter, params.copy(), best_model_state, LABEL)
 
     # writer.export_scalars_to_json('test.json')
