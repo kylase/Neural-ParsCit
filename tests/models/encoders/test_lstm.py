@@ -1,9 +1,14 @@
 import pytest
 import torch
+
+from typing import Tuple
+from torch.nn.utils.rnn import PackedSequence, pad_sequence
+
 from models.encoders import LSTMEncoder
 
+
 class TestLSTMEncoder:
-    VOCAB_SIZE = 20
+    VOCAB_SIZE = ord('z') - ord('a') + 1
     EMBEDDING_DIM = 50
 
     def setup(self):
@@ -56,25 +61,35 @@ class TestLSTMEncoder:
         assert self.models['simple_with_pretrained'].embedding_dim == self.EMBEDDING_DIM
 
     def test_forward(self):
-        # Randomly instantiate a 2 strings of sequence length 10
-        BATCH_SIZE = 2
-        MAX_SEQ_LEN = 10
+        # Test data
+        # a quick brown fox jumps over the wall
+        test_string = "a quick brown fox jumps over the wall"
+        char_indices = [list(map(lambda w: ord(w) - ord('a') + 1, word)) \
+                        for word in test_string.split(" ")]
 
-        input_tensor = torch.randint(low=0, high=self.VOCAB_SIZE - 1,
-                                     size=(MAX_SEQ_LEN, BATCH_SIZE))
+        padded_sequence = pad_sequence([torch.tensor(c) for c in char_indices]).contiguous()
+
+        # pad_sequence return tensor of shape [max_seq_len, batch_size]
+        test_shape = (max([len(w) for w in test_string.split(" ")]),
+                      len(test_string.split(" ")))
+        assert padded_sequence.shape == test_shape
 
         for _, model in self.models.items():
             with torch.no_grad():
-                encoded = model(input_tensor)
+                encoded, hidden_states = model(padded_sequence)
 
-            assert encoded.size() == (MAX_SEQ_LEN, BATCH_SIZE, model.hidden_dim * 2 ** (model.lstm.bidirectional))
+            assert isinstance(encoded, PackedSequence)
+            assert isinstance(hidden_states, Tuple)
+
+            # Check the shape of the final hidden state
+            assert hidden_states[0].shape == (model.lstm_factor, test_shape[0], model.hidden_dim)
 
     def test_init_hidden_states(self):
         layer = self.models['simple']
 
         batch_size = 20
 
-        layer.init_hidden_states(batch_size)
+        hidden_states = layer.init_hidden_states(batch_size)
 
-        assert layer.hidden_states[0].size() == (1, batch_size, layer.hidden_dim)
-        assert layer.hidden_states[1].size() == (1, batch_size, layer.hidden_dim)
+        assert hidden_states[0].shape == (1, batch_size, layer.hidden_dim)
+        assert hidden_states[1].shape == (1, batch_size, layer.hidden_dim)
